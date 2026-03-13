@@ -1,4 +1,4 @@
-# TaskFlow – Full-Stack Task Management Application
+# TaskFlow
 
 > **React · Node/Express · MySQL · Tailwind CSS · MVC Architecture**
 
@@ -161,7 +161,7 @@ NODE_ENV=development
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
-DB_PASSWORD=your_mysql_password_here
+DB_PASSWORD=yAditya@123
 DB_NAME=task_manager_db
 
 FRONTEND_ORIGIN=http://localhost:5173
