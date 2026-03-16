@@ -1,32 +1,29 @@
 // controllers/aiController.js
-// ============================================================
-// AI Controller – Calls Anthropic Claude API to generate
-// smart step-by-step suggestions for completing a task.
-// Uses the logged-in user's context for personalised advice.
-// ============================================================
+// Using Groq API — 100% Free, no credit card needed
+// Get your free key at: https://console.groq.com
 
-const Anthropic = require('@anthropic-ai/sdk');
+const https = require('https');
 
-// Initialise Anthropic client — reads ANTHROPIC_API_KEY from .env
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
-// ── POST /api/ai/suggest ────────────────────────────────────
 const suggestTask = async (req, res) => {
   try {
     const { title, description, due_date, status, remarks } = req.body;
-    const userName = req.user?.name || 'the user';
 
-    // Validate — must provide at least a title
     if (!title || !title.trim()) {
       return res.status(422).json({
         success: false,
-        message: 'Task title is required to generate suggestions.',
+        message: 'Task title is required.',
       });
     }
 
-    // ── Build a rich, structured prompt ──────────────────────
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        message: 'GROQ_API_KEY is missing from your .env file.',
+      });
+    }
+
+    // Build task context
     const taskContext = [
       `Task Title: ${title}`,
       description ? `Description: ${description}` : null,
@@ -51,50 +48,86 @@ Please provide a clear, practical, and motivating response with:
 
 Keep the tone friendly, professional, and encouraging. Format using markdown with bold headings.`;
 
-    // ── Call Claude API ────────────────────────────────────────
-    const message = await anthropic.messages.create({
-      model:      'claude-opus-4-5',
-      max_tokens: 1024,
-      messages:   [{ role: 'user', content: prompt }],
+    // Groq API request body
+    const body = JSON.stringify({
+      model:       'llama-3.1-8b-instant',
+      messages:    [{ role: 'user', content: prompt }],
+      max_tokens:  1024,
+      temperature: 0.7,
     });
 
-    // Extract text from the response
-    const suggestion = message.content
-      .filter(block => block.type === 'text')
-      .map(block => block.text)
-      .join('\n');
+    const options = {
+      hostname: 'api.groq.com',
+      path:     '/openai/v1/chat/completions',
+      method:   'POST',
+      headers:  {
+        'Content-Type':   'application/json',
+        'Authorization':  `Bearer ${apiKey}`,
+        'Content-Length': Buffer.byteLength(body),
+      },
+    };
+
+    // Call Groq API
+    const suggestion = await new Promise((resolve, reject) => {
+      const request = https.request(options, (response) => {
+        let data = '';
+        response.on('data', (chunk) => { data += chunk; });
+        response.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) {
+              reject(new Error(parsed.error.message || 'Groq API error'));
+              return;
+            }
+            const text = parsed.choices?.[0]?.message?.content;
+            if (!text) {
+              reject(new Error('No response received from Groq'));
+              return;
+            }
+            resolve(text);
+          } catch (e) {
+            reject(new Error('Failed to parse Groq response'));
+          }
+        });
+      });
+      request.on('error', (err) => reject(err));
+      request.write(body);
+      request.end();
+    });
+
+    console.log(`[AI Groq] ✅ Suggestion generated for: "${title}"`);
 
     return res.status(200).json({
-      success:    true,
-      message:    'AI suggestion generated successfully.',
+      success: true,
+      message: 'AI suggestion generated successfully.',
       data: {
         suggestion,
-        task_title: title,
-        model:      message.model,
-        tokens_used: message.usage?.output_tokens || 0,
+        task_title:  title,
+        model:       'llama-3.1-8b-instant (Groq)',
+        tokens_used: 0,
       },
     });
 
   } catch (err) {
-    console.error('[suggestTask AI]', err);
+    console.error('[AI Error]', err.message);
 
-    // Handle specific Anthropic API errors gracefully
-    if (err.status === 401) {
+    if (err.message?.includes('invalid_api_key') || err.message?.includes('401')) {
       return res.status(500).json({
         success: false,
-        message: 'Invalid Anthropic API key. Please check your ANTHROPIC_API_KEY in .env',
+        message: 'Invalid Groq API key. Check GROQ_API_KEY in your .env file.',
       });
     }
-    if (err.status === 429) {
+
+    if (err.message?.includes('rate_limit')) {
       return res.status(429).json({
         success: false,
-        message: 'AI rate limit reached. Please wait a moment and try again.',
+        message: 'Too many requests. Please wait a moment and try again.',
       });
     }
 
     return res.status(500).json({
       success: false,
-      message: 'Failed to generate AI suggestion. Please try again.',
+      message: `AI error: ${err.message}`,
     });
   }
 };
