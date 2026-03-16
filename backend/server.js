@@ -8,6 +8,7 @@ const { testConnection } = require('./config/db');
 const taskRoutes      = require('./routes/taskRoutes');
 const authRoutes      = require('./routes/authRoutes');
 const authMiddleware  = require('./middleware/authMiddleware');
+const aiRoutes = require('./routes/aiRoutes');
 
 const app  = express();
 const PORT = process.env.PORT || 5000;
@@ -27,8 +28,9 @@ app.use('/api/auth', authRoutes);
 
 // Protected routes
 app.use('/api/tasks', authMiddleware, taskRoutes);
+app.use('/api/ai', authMiddleware, aiRoutes);
 
-// 404
+// 404  
 app.use((_req, res) => res.status(404).json({ success: false, message: 'Route not found.' }));
 
 // Error handler
@@ -43,6 +45,7 @@ const start = async () => {
     console.log(`🚀  Server  → http://localhost:${PORT}`);
     console.log(`🔐  Auth    → http://localhost:${PORT}/api/auth`);
     console.log(`📋  Tasks   → http://localhost:${PORT}/api/tasks`);
+    console.log(`🤖  AI  → http://localhost:${PORT}/api/ai`);
   });
 };
 
