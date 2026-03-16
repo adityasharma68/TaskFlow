@@ -1,4 +1,4 @@
-// src/components/TaskTable.jsx — Responsive (table on desktop, cards on mobile)
+// src/components/TaskTable.jsx — with AI Suggest button on pending tasks
 import { useState } from 'react';
 import { format, parseISO, isPast, isToday } from 'date-fns';
 
@@ -11,11 +11,7 @@ const DueDate = ({ dateStr }) => {
   if (!dateStr) return <span className="text-slate-600">—</span>;
   const date = parseISO(dateStr);
   const overdue = isPast(date) && !isToday(date);
-  return (
-    <span className={`font-mono text-xs ${overdue?'text-red-400':'text-slate-400'}`}>
-      {overdue && '⚠ '}{format(date,'dd MMM yyyy')}
-    </span>
-  );
+  return <span className={`font-mono text-xs ${overdue?'text-red-400':'text-slate-400'}`}>{overdue&&'⚠ '}{format(date,'dd MMM yyyy')}</span>;
 };
 
 const Avatar = ({ name }) => {
@@ -24,18 +20,35 @@ const Avatar = ({ name }) => {
   return <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${colors[(name||'').charCodeAt(0)%colors.length||0]} text-white text-xs font-bold flex-shrink-0`}>{initials}</span>;
 };
 
-// ── Action buttons ──────────────────────────────────────────
-const ActionButtons = ({ task, onEdit, onDelete, deleting }) => (
-  <div className="flex items-center gap-1.5">
+// ── AI Sparkle Icon ──────────────────────────────────────────
+const SparkleIcon = () => (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"/>
+  </svg>
+);
+
+// ── Action buttons ───────────────────────────────────────────
+const ActionButtons = ({ task, onEdit, onDelete, onAI, deleting }) => (
+  <div className="flex items-center gap-1">
+    {task.status === 'Pending' && (
+      <button onClick={() => onAI(task)}
+        className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150"
+        style={{ background:'rgba(20,184,166,0.1)', color:'#2dd4bf', border:'1px solid rgba(20,184,166,0.2)' }}
+        onMouseEnter={e => e.currentTarget.style.background='rgba(20,184,166,0.2)'}
+        onMouseLeave={e => e.currentTarget.style.background='rgba(20,184,166,0.1)'}
+        title="Get AI suggestions">
+        <SparkleIcon /> AI
+      </button>
+    )}
     <button onClick={() => onEdit(task)}
-      className="p-2 rounded-lg text-slate-400 hover:text-brand-400 hover:bg-brand-500/10 transition-colors"
+      className="p-1.5 rounded-lg text-slate-400 hover:text-brand-400 hover:bg-brand-500/10 transition-colors"
       title="Edit">
       <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
       </svg>
     </button>
     <button onClick={() => onDelete(task)} disabled={deleting}
-      className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+      className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
       title="Delete">
       {deleting
         ? <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"/>
@@ -45,7 +58,7 @@ const ActionButtons = ({ task, onEdit, onDelete, deleting }) => (
   </div>
 );
 
-const TaskTable = ({ tasks, loading, onEdit, onDelete }) => {
+const TaskTable = ({ tasks, loading, onEdit, onDelete, onAISuggest }) => {
   const [deletingId, setDeletingId] = useState(null);
 
   const handleDelete = async (task) => {
@@ -98,7 +111,7 @@ const TaskTable = ({ tasks, loading, onEdit, onDelete }) => {
               {tasks.map((task, idx) => (
                 <tr key={task.id} className="group hover:bg-slate-800/30 transition-colors duration-100">
                   <td className="pl-6 pr-4 py-4 font-mono text-xs text-slate-600 w-10">{String(idx+1).padStart(2,'0')}</td>
-                  <td className="px-4 py-4 max-w-xs">
+                  <td className="px-4 py-4 max-w-[220px]">
                     <p className="font-semibold text-slate-100 truncate">{task.title}</p>
                     {task.description&&<p className="text-slate-500 text-xs mt-0.5 line-clamp-1">{task.description}</p>}
                     {task.remarks&&<p className="text-slate-600 text-xs mt-0.5 italic line-clamp-1">↳ {task.remarks}</p>}
@@ -108,7 +121,7 @@ const TaskTable = ({ tasks, loading, onEdit, onDelete }) => {
                   <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <Avatar name={task.created_by}/>
-                      <span className="text-slate-400 text-xs truncate max-w-[100px]">{task.created_by||'—'}</span>
+                      <span className="text-slate-400 text-xs truncate max-w-[90px]">{task.created_by||'—'}</span>
                     </div>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
@@ -116,9 +129,10 @@ const TaskTable = ({ tasks, loading, onEdit, onDelete }) => {
                       {task.updated_at?format(parseISO(task.updated_at),'dd MMM HH:mm'):'—'}
                     </span>
                   </td>
-                  <td className="pl-4 pr-6 py-4 whitespace-nowrap text-right">
+                  <td className="pl-4 pr-5 py-4 whitespace-nowrap text-right">
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <ActionButtons task={task} onEdit={onEdit} onDelete={handleDelete} deleting={deletingId===task.id}/>
+                      <ActionButtons task={task} onEdit={onEdit} onDelete={handleDelete}
+                        onAI={onAISuggest} deleting={deletingId===task.id}/>
                     </div>
                   </td>
                 </tr>
@@ -128,9 +142,16 @@ const TaskTable = ({ tasks, loading, onEdit, onDelete }) => {
         </div>
         <div className="px-6 py-3 border-t border-slate-800 flex items-center justify-between">
           <span className="text-xs text-slate-600 font-mono">{tasks.length} task(s)</span>
-          <span className="text-xs text-slate-700">
-            {tasks.filter(t=>t.status==='Completed').length} completed · {tasks.filter(t=>t.status==='Pending').length} pending
-          </span>
+          <div className="flex items-center gap-3">
+            {tasks.filter(t=>t.status==='Pending').length > 0 && (
+              <span className="text-xs text-brand-400 font-mono flex items-center gap-1">
+                <SparkleIcon/> Hover a pending task for AI suggestions
+              </span>
+            )}
+            <span className="text-xs text-slate-700">
+              {tasks.filter(t=>t.status==='Completed').length} completed · {tasks.filter(t=>t.status==='Pending').length} pending
+            </span>
+          </div>
         </div>
       </div>
 
@@ -152,12 +173,21 @@ const TaskTable = ({ tasks, loading, onEdit, onDelete }) => {
                 <DueDate dateStr={task.due_date}/>
               </span>
               <span className="flex items-center gap-1.5 text-slate-500">
-                <Avatar name={task.created_by}/>
-                {task.created_by||'—'}
+                <Avatar name={task.created_by}/>{task.created_by||'—'}
               </span>
             </div>
-            <div className="flex justify-end pt-1 border-t border-slate-800/60">
-              <ActionButtons task={task} onEdit={onEdit} onDelete={handleDelete} deleting={deletingId===task.id}/>
+            <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+              {task.status === 'Pending' && (
+                <button onClick={() => onAISuggest(task)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  style={{ background:'rgba(20,184,166,0.12)', color:'#2dd4bf', border:'1px solid rgba(20,184,166,0.25)' }}>
+                  <SparkleIcon /> Ask AI
+                </button>
+              )}
+              <div className={task.status !== 'Pending' ? 'ml-auto' : ''}>
+                <ActionButtons task={task} onEdit={onEdit} onDelete={handleDelete}
+                  onAI={onAISuggest} deleting={deletingId===task.id}/>
+              </div>
             </div>
           </div>
         ))}
