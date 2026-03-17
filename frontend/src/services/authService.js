@@ -1,17 +1,11 @@
-// src/services/authService.js
-// ============================================================
-// Auth Service – Login, Register, token storage helpers.
-// ============================================================
-
 import axios from 'axios';
 
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: { 'Content-Type': 'application/json' },
-  timeout: 10_000,
+  timeout: 10000,
 });
 
-// Attach JWT on every request if present
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem('tf_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -34,7 +28,6 @@ export const registerRequest = (name, email, password) =>
 
 export const getMeRequest    = () => API.get('/auth/me');
 
-// ── Token helpers ───────────────────────────────────────────
 export const saveToken   = (token) => localStorage.setItem('tf_token', token);
 export const getToken    = ()      => localStorage.getItem('tf_token');
 export const removeToken = ()      => localStorage.removeItem('tf_token');
