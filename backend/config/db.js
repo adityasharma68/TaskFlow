@@ -18,7 +18,7 @@ const pool = mysql.createPool({
   password:        process.env.DB_PASSWORD || 'c9bf9d70a97cfa16b29c5e963471e1f875911c9e',
   database:        process.env.DB_NAME     || 'TaskFlow_shopsaveit',
   waitForConnections: true,
-  connectionLimit: 5,      // Max simultaneous connections
+  connectionLimit: 3,      // Max simultaneous connections
   queueLimit:      0,       // Unlimited queued requests
   charset:         'utf8mb4',
   timezone:        '+00:00', // Store/retrieve in UTC
