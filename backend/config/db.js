@@ -12,11 +12,11 @@ require('dotenv').config();
  * Pooling reuses connections and avoids per-request overhead.
  */
 const pool = mysql.createPool({
-  host:            process.env.DB_HOST     || 'localhost',
-  port:            parseInt(process.env.DB_PORT) || 3306,
-  user:            process.env.DB_USER     || 'root',
-  password:        process.env.DB_PASSWORD || 'Aditya@123',
-  database:        process.env.DB_NAME     || 'task_manager_db',
+  host:            process.env.DB_HOST     || 'y3f79f.h.filess.io',
+  port:            parseInt(process.env.DB_PORT) || 61031,
+  user:            process.env.DB_USER     || 'TaskFlow_shopsaveit',
+  password:        process.env.DB_PASSWORD || 'c9bf9d70a97cfa16b29c5e963471e1f875911c9e',
+  database:        process.env.DB_NAME     || 'TaskFlow_shopsaveit',
   waitForConnections: true,
   connectionLimit: 10,      // Max simultaneous connections
   queueLimit:      0,       // Unlimited queued requests
