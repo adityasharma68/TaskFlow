@@ -1,16 +1,16 @@
-require('dotenv').config();
-const mysql = require('mysql2/promise');
+require("dotenv").config();
+const mysql = require("mysql2/promise");
 
 const pool = mysql.createPool({
-  host:               process.env.DB_HOST,
-  port:               parseInt(process.env.DB_PORT) || 3306,
-  user:               process.env.DB_USER,
-  password:           process.env.DB_PASSWORD,
-  database:           process.env.DB_NAME,
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT) || 3306,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit:    2,
-  queueLimit:         0,
-  ssl:                { rejectUnauthorized: false },
+  connectionLimit: 2,
+  queueLimit: 0,
+  ssl: { rejectUnauthorized: false },
 });
 
 const testConnection = async () => {
@@ -19,7 +19,7 @@ const testConnection = async () => {
     console.log(`✅  MySQL connected successfully`);
     connection.release();
   } catch (err) {
-    console.error('❌  MySQL connection failed:', err.message);
+    console.error("❌  MySQL connection failed:", err.message);
     process.exit(1);
   }
 };
