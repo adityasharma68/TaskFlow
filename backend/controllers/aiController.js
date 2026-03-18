@@ -1,118 +1,114 @@
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const { validationResult } = require("express-validator");
-const userModel = require("../models/userModel");
+// controllers/aiController.js
+const https = require('https');
 
-const AVATAR_COLORS = [
-  "#14b8a6",
-  "#8b5cf6",
-  "#f59e0b",
-  "#ef4444",
-  "#3b82f6",
-  "#10b981",
-  "#ec4899",
-  "#f97316",
-];
-
-const respond = (res, code, success, message, data = null) => {
-  const payload = { success, message };
-  if (data !== null) payload.data = data;
-  return res.status(code).json(payload);
-};
-
-const signToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-  });
-
-const register = async (req, res) => {
+const suggestTask = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty())
-      return respond(
-        res,
-        422,
-        false,
-        errors
-          .array()
-          .map((e) => e.msg)
-          .join(", "),
-      );
+    const { title, description, due_date, status, remarks } = req.body;
 
-    const { name, email, password } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(422).json({
+        success: false,
+        message: 'Task title is required.',
+      });
+    }
 
-    if (await userModel.emailExists(email))
-      return respond(
-        res,
-        409,
-        false,
-        "An account with that email already exists.",
-      );
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        message: 'GROQ_API_KEY is missing from your .env file.',
+      });
+    }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const avatarColor =
-      AVATAR_COLORS[email.charCodeAt(0) % AVATAR_COLORS.length];
-    const user = await userModel.createUser({
-      name,
-      email,
-      hashedPassword,
-      avatarColor,
+    const taskContext = [
+      `Task Title: ${title}`,
+      description ? `Description: ${description}` : null,
+      due_date     ? `Due Date: ${due_date}`        : null,
+      status       ? `Current Status: ${status}`    : null,
+      remarks      ? `Remarks/Notes: ${remarks}`    : null,
+    ].filter(Boolean).join('\n');
+
+    const prompt = `You are a helpful productivity assistant inside a task management app called TaskFlow.
+
+A user needs help completing the following task:
+
+${taskContext}
+
+Please provide a clear, practical, and motivating response with:
+
+1. **Quick Summary** — One sentence explaining what this task is about.
+2. **Step-by-Step Plan** — A numbered list of 4 to 6 concrete action steps to complete this task. Be specific and actionable.
+3. **Pro Tips** — 2 to 3 expert tips or best practices relevant to this task.
+4. **Time Estimate** — A realistic estimate of how long this task might take.
+5. **Motivational Note** — One short sentence to encourage the user to get started.
+
+Keep the tone friendly, professional, and encouraging. Format using markdown with bold headings.`;
+
+    const body = JSON.stringify({
+      model:       'llama-3.1-8b-instant',
+      messages:    [{ role: 'user', content: prompt }],
+      max_tokens:  1024,
+      temperature: 0.7,
     });
-    const token = signToken(user.id);
 
-    return respond(res, 201, true, "Account created successfully.", {
-      user,
-      token,
+    const options = {
+      hostname: 'api.groq.com',
+      path:     '/openai/v1/chat/completions',
+      method:   'POST',
+      headers:  {
+        'Content-Type':   'application/json',
+        'Authorization':  `Bearer ${apiKey}`,
+        'Content-Length': Buffer.byteLength(body),
+      },
+    };
+
+    const suggestion = await new Promise((resolve, reject) => {
+      const request = https.request(options, (response) => {
+        let data = '';
+        response.on('data', (chunk) => { data += chunk; });
+        response.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) {
+              reject(new Error(parsed.error.message || 'Groq API error'));
+              return;
+            }
+            const text = parsed.choices?.[0]?.message?.content;
+            if (!text) {
+              reject(new Error('No response from Groq'));
+              return;
+            }
+            resolve(text);
+          } catch (e) {
+            reject(new Error('Failed to parse Groq response'));
+          }
+        });
+      });
+      request.on('error', (err) => reject(err));
+      request.write(body);
+      request.end();
     });
+
+    console.log(`[AI Groq] ✅ Suggestion generated for: "${title}"`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'AI suggestion generated successfully.',
+      data: {
+        suggestion,
+        task_title:  title,
+        model:       'llama-3.1-8b-instant (Groq)',
+        tokens_used: 0,
+      },
+    });
+
   } catch (err) {
-    console.error("[register]", err);
-    return respond(res, 500, false, "Server error during registration.");
+    console.error('[AI Error]', err.message);
+    return res.status(500).json({
+      success: false,
+      message: `AI error: ${err.message}`,
+    });
   }
 };
 
-const login = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty())
-      return respond(
-        res,
-        422,
-        false,
-        errors
-          .array()
-          .map((e) => e.msg)
-          .join(", "),
-      );
-
-    const { email, password } = req.body;
-    const user = await userModel.findByEmail(email);
-    if (!user) return respond(res, 401, false, "Invalid email or password.");
-
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return respond(res, 401, false, "Invalid email or password.");
-
-    const { password: _pw, ...safeUser } = user;
-    const token = signToken(safeUser.id);
-
-    return respond(res, 200, true, "Login successful.", {
-      user: safeUser,
-      token,
-    });
-  } catch (err) {
-    console.error("[login]", err);
-    return respond(res, 500, false, "Server error during login.");
-  }
-};
-
-const getMe = async (req, res) => {
-  try {
-    const user = await userModel.findById(req.user.id);
-    if (!user) return respond(res, 404, false, "User not found.");
-    return respond(res, 200, true, "User retrieved.", user);
-  } catch (err) {
-    console.error("[getMe]", err);
-    return respond(res, 500, false, "Server error.");
-  }
-};
-
-module.exports = { register, login, getMe };
+module.exports = { suggestTask };
