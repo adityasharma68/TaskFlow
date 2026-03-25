@@ -379,7 +379,7 @@ const AuthPage = () => {
               <div className="flex-1 h-px bg-white/6" />
             </div>
 
-            {/* Demo credentials box
+            Demo credentials box
             <div className="rounded-xl border border-brand-500/15 bg-brand-500/5 p-4">
               <p className="text-xs font-semibold text-brand-400/70 uppercase tracking-widest mb-2">
                 Demo Credentials
@@ -395,7 +395,7 @@ const AuthPage = () => {
                   </div>
                 ))}
               </div>
-            </div> */}
+            </div>
 
             {/* Mode switch link */}
             <p className="text-center text-sm text-slate-600 mt-6">
